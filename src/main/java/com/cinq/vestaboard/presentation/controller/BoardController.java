@@ -2,16 +2,15 @@ package com.cinq.vestaboard.presentation.controller;
 
 import com.cinq.vestaboard.infrastructure.api.vestaboard.MessageCreator;
 import com.cinq.vestaboard.infrastructure.api.vestaboard.VestaBoardGateway;
-import com.cinq.vestaboard.infrastructure.api.vestaboard.dto.GetCurrentMessageResponse;
-import com.cinq.vestaboard.infrastructure.api.vestaboard.dto.SetMessageCharactersRequest;
-import com.cinq.vestaboard.infrastructure.api.vestaboard.dto.SetMessageRequest;
-import com.cinq.vestaboard.infrastructure.api.vestaboard.dto.VestaboardMessage;
+import com.cinq.vestaboard.infrastructure.api.vestaboard.dto.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Arrays;
 
 @RestController
 @RequestMapping("/vestaboard")
@@ -42,13 +41,13 @@ public class BoardController {
         SetMessageCharactersRequest setMessageRequest = new SetMessageCharactersRequest();
         setMessageRequest.setCharacters(composedMessage);
 
-//        GetCurrentMessageResponse currentMessage = vestaBoardGateway.getCurrentMessage();
-//        String composeMessageString = Arrays.deepToString(composedMessage).replaceAll("\\s", "");
-//        if(!currentMessage.getCurrentMessage().getLayout().equals(composeMessageString)) {
-//            SetMessageResponse response = vestaBoardGateway.setMessage(setMessageRequest);
-//
-//            return response.getStatus();
-//        }
+        GetCurrentMessageResponse currentMessage = vestaBoardGateway.getCurrentMessage();
+        String composeMessageString = Arrays.deepToString(composedMessage).replaceAll("\\s", "");
+        if(!currentMessage.getCurrentMessage().getLayout().equals(composeMessageString)) {
+            SetMessageResponse response = vestaBoardGateway.setMessage(setMessageRequest);
+
+            return response.getStatus();
+        }
 
         return "no change";
     }

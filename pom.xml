@@ -60,6 +60,8 @@
     </dependencies>
 
     <build>
+        <finalName>vestaboard-service</finalName>
+
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
