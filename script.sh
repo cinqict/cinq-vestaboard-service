@@ -1,7 +1,7 @@
 # 1. Set your credentials
 export SCW_SECRET_KEY="your-secret-key"
-export REGISTRY_ENDPOINT="rg.nl-ams.scw.cloud"
-export NAMESPACE="funcscwnscinqgptw8bb14edb"
+export REGISTRY_ENDPOINT="your-registry-endpoint"
+export NAMESPACE="your-namespace"
 export MICROSERVICE_NAME="vestaboard-service"
 
 # 2. Log in to Scaleway Container Registry
