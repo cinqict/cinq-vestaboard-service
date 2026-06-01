@@ -29,7 +29,8 @@ public class BoardController {
     public String getCurrentMessage() {
         GetCurrentMessageResponse currentMessage = vestaBoardGateway.getCurrentMessage();
 
-        return currentMessage.getCurrentMessage().getLayout();
+        String layout = currentMessage.getCurrentMessage().getLayout();
+        return layout;
     }
 
     @PostMapping

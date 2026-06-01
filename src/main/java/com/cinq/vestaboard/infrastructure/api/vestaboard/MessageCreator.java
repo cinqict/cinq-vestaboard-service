@@ -1,15 +1,22 @@
 package com.cinq.vestaboard.infrastructure.api.vestaboard;
 
 import com.cinq.vestaboard.infrastructure.api.vestaboard.dto.*;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 public class MessageCreator {
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     private static final int BOARD_WIDTH = 22;
     private static final int CONTENT_WIDTH = 20;
@@ -35,8 +42,112 @@ public class MessageCreator {
 
                return createBorderedMessage(title);
            }
+           case "scoreboard" -> {
+                String title = (String) params.get("title");
+                List<Object> entryObjects = (List<Object>) params.get("ranks");
+
+                List<ScoreBoardEntry> scoreBoardEntries = new ArrayList<>();
+                for (Object entryObject : entryObjects) {
+                    ScoreBoardEntry scoreBoardEntry = objectMapper.convertValue(entryObject, ScoreBoardEntry.class);
+                    scoreBoardEntries.add(scoreBoardEntry);
+                }
+
+                return createScoreBoardMessage(title, scoreBoardEntries);
+            }
             default -> throw new IllegalArgumentException("Unknown message type: " + type);
 
+        }
+    }
+
+    private VestaboardMessage createScoreBoardMessage(String title, List<ScoreBoardEntry> scoreBoardEntries) {
+        VestaboardStyle messageComponentStyle = new VestaboardStyle();
+        messageComponentStyle.setHeight(1);
+        messageComponentStyle.setWidth(BOARD_WIDTH);
+        messageComponentStyle.setAlign(VestaboardAlign.CENTER);
+        messageComponentStyle.setJustify(VestaboardJustify.CENTER);
+
+        if (title.length() > CONTENT_WIDTH) {
+            title = title.substring(0, CONTENT_WIDTH - 1);
+        }
+
+        VestaboardComponent messageComponent = new VestaboardComponent();
+        messageComponent.setTemplate(title);
+        messageComponent.setStyle(messageComponentStyle);
+
+        StringBuilder contentBuilder = new StringBuilder();
+        boolean alternate = false;
+        for (ScoreBoardEntry scoreBoardEntry : scoreBoardEntries) {
+            int rankLength = String.valueOf(scoreBoardEntry.getRank()).length() + 1;
+            int scoreLength = String.valueOf(scoreBoardEntry.getScore()).length() + 1;
+            int nameLength = CONTENT_WIDTH - rankLength - scoreLength;
+            StringBuilder builder = new StringBuilder();
+
+            if (scoreBoardEntry.getName().length() > nameLength) {
+                scoreBoardEntry.setName(scoreBoardEntry.getName().substring(0, nameLength));
+            }
+
+            builder.append(scoreBoardEntry.getName());
+            addPadding(builder, nameLength);
+
+
+            builder.insert(0, scoreBoardEntry.getRank());
+            builder.insert(0, " ");
+
+            builder.append(scoreBoardEntry.getScore());
+            builder.append(" ");
+
+            addBorder(alternate, builder);
+            alternate = !alternate;
+
+            contentBuilder.append(builder);
+        }
+
+        if(scoreBoardEntries.size() < BOARD_HEIGHT) {
+            int emptyRows = BOARD_HEIGHT - scoreBoardEntries.size();
+
+            for (int i = 0; i < emptyRows; i++) {
+                StringBuilder emptyLineBuilder = new StringBuilder();
+                addEmptyRow(emptyLineBuilder);
+                addBorder(alternate, emptyLineBuilder);
+                contentBuilder.append(emptyLineBuilder);
+                alternate = !alternate;
+            }
+        }
+
+        VestaboardStyle contentStyle = new VestaboardStyle();
+//        contentStyle.setAlign(VestaboardAlign.CENTER);
+//        contentStyle.setJustify(VestaboardJustify.CENTER);
+        contentStyle.setHeight(BOARD_HEIGHT-1);
+        contentStyle.setWidth(BOARD_WIDTH);
+
+        VestaboardComponent contentComponent = new VestaboardComponent();
+        contentComponent.setStyle(contentStyle);
+        contentComponent.setTemplate(contentBuilder.toString());
+
+        VestaboardMessage vestaboardMessage = new VestaboardMessage();
+        vestaboardMessage.setProps(Map.of());
+        vestaboardMessage.setComponents(List.of(
+                messageComponent,
+                contentComponent));
+
+        return vestaboardMessage;
+    }
+
+    private void addEmptyRow(StringBuilder builder) {
+        for (int i = 0; i < CONTENT_WIDTH; i++) {
+            builder.append("{0}");
+        }
+    }
+
+    private void addBorder(boolean alternate, StringBuilder builder) {
+        if(alternate) {
+            log.info("orange");
+            builder.insert(0, "{64}");
+            builder.append("{64}");
+        } else {
+            log.info("blue");
+            builder.insert(0, "{67}");
+            builder.append("{67}");
         }
     }
 
@@ -140,16 +251,16 @@ public class MessageCreator {
                 addWord(lineBuilder, word);
 
                 if(i == words.size() - 1) {
-                    addPadding(lineBuilder);
+                    addPadding(lineBuilder, CONTENT_WIDTH);
                 }
             } else {
-                addPadding(lineBuilder);
+                addPadding(lineBuilder, CONTENT_WIDTH);
                 lines.add(lineBuilder.toString());
                 lineBuilder = new StringBuilder();
                 addWord(lineBuilder, word);
 
                 if(i == words.size() - 1) {
-                    addPadding(lineBuilder);
+                    addPadding(lineBuilder, CONTENT_WIDTH);
                 }
             }
         }
@@ -191,8 +302,8 @@ public class MessageCreator {
         return stringBuilder.toString();
     }
 
-    private void addPadding(StringBuilder stringBuilder) {
-        int padding = CONTENT_WIDTH - stringBuilder.length();
+    private void addPadding(StringBuilder stringBuilder, int maxWidth) {
+        int padding = maxWidth - stringBuilder.length();
 
         for(int i = 0; i < padding; i++) {
             if(i%2 == 0) {
