@@ -1,15 +1,21 @@
 package com.cinq.vestaboard.infrastructure.api.vestaboard.dto;
 
+import com.cinq.vestaboard.domain.MessageType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.util.Map;
 
 @Data
 public class SetMessageRequest {
-    @Schema(description = "The type of message to be displayed on the Vestaboard", allowableValues = {"text", "progress"})
-    private String type;
-    @Schema(description = "Parameters for the Vestaboard message. Values depend on the message type. " +
-            "Please refer to this project's README for all message types and their corresponding parameters")
+    @NotNull
+    @Schema(description = "The type of message to display on the Vestaboard", allowableValues = {"PROGRESS", "CELEBRATION"})
+    private MessageType type;
+
+    @NotNull
+    @Schema(description = "Parameters for the message type. " +
+            "PROGRESS: title (string), current (int), total (int). " +
+            "CELEBRATION: title (string).")
     private Map<String, Object> params;
 }

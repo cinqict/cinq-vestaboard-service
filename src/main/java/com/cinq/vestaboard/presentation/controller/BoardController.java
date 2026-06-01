@@ -1,16 +1,14 @@
 package com.cinq.vestaboard.presentation.controller;
 
-import com.cinq.vestaboard.infrastructure.api.vestaboard.MessageCreator;
-import com.cinq.vestaboard.infrastructure.api.vestaboard.VestaBoardGateway;
-import com.cinq.vestaboard.infrastructure.api.vestaboard.dto.*;
+import com.cinq.vestaboard.application.BoardService;
+import com.cinq.vestaboard.infrastructure.api.vestaboard.dto.SetMessageRequest;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Arrays;
 
 @RestController
 @RequestMapping("/vestaboard")
@@ -19,36 +17,20 @@ import java.util.Arrays;
 @Tag(name = "Vestaboard", description = "Set and retrieve the current Vestaboard message")
 public class BoardController {
 
-    @Autowired
-    private VestaBoardGateway vestaBoardGateway;
-    @Autowired
-    private MessageCreator messageCreator;
+    private final BoardService boardService;
 
     @GetMapping
     @Operation(summary = "Get current Vestaboard message")
     public String getCurrentMessage() {
-        GetCurrentMessageResponse currentMessage = vestaBoardGateway.getCurrentMessage();
-
-        return currentMessage.getCurrentMessage().getLayout();
+        return boardService.getCurrentMessage();
     }
 
     @PostMapping
     @Operation(summary = "Set new Vestaboard message")
     public String setMessage(
-            @RequestBody SetMessageRequest message) {
-        VestaboardMessage vestaboardMessage = messageCreator.create(message.getType(), message.getParams());
-        int[][] composedMessage = vestaBoardGateway.compose(vestaboardMessage);
-        SetMessageCharactersRequest setMessageRequest = new SetMessageCharactersRequest();
-        setMessageRequest.setCharacters(composedMessage);
-
-        GetCurrentMessageResponse currentMessage = vestaBoardGateway.getCurrentMessage();
-        String composeMessageString = Arrays.deepToString(composedMessage).replaceAll("\\s", "");
-        if(!currentMessage.getCurrentMessage().getLayout().equals(composeMessageString)) {
-            SetMessageResponse response = vestaBoardGateway.setMessage(setMessageRequest);
-
-            return response.getStatus();
-        }
-
-        return "no change";
+            @Valid @RequestBody SetMessageRequest request,
+            @Parameter(description = "Send the message even if it matches what is currently displayed")
+            @RequestParam(defaultValue = "false") boolean force) {
+        return boardService.setMessage(request, force);
     }
 }

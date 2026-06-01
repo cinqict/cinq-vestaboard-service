@@ -1,5 +1,6 @@
 package com.cinq.vestaboard.infrastructure.api.vestaboard;
 
+import com.cinq.vestaboard.domain.MessageType;
 import com.cinq.vestaboard.infrastructure.api.vestaboard.dto.*;
 import org.springframework.stereotype.Service;
 
@@ -17,26 +18,38 @@ public class MessageCreator {
     private static final int CONTENT_HEIGHT = 4;
     private static final int CHAR_LIMIT = CONTENT_WIDTH * CONTENT_HEIGHT;
 
-    public VestaboardMessage create(String type, Map<String, Object> params) {
-        switch (type) {
-            case "progress" -> {
-                String title = (String) params.get("title");
-                int current = Integer.parseInt(params.get("current").toString());
-                int total = Integer.parseInt(params.get("total").toString());
-
-                return createProgressMessage(
-                        title,
-                        current,
-                        total
-                );
+    public VestaboardMessage create(MessageType type, Map<String, Object> params) {
+        return switch (type) {
+            case PROGRESS -> {
+                String title = requireStringParam(params, "title");
+                int current = requireIntParam(params, "current");
+                int total = requireIntParam(params, "total");
+                if (total <= 0) throw new IllegalArgumentException("Parameter 'total' must be greater than 0");
+                if (current < 0 || current > total) throw new IllegalArgumentException("Parameter 'current' must be between 0 and total");
+                yield createProgressMessage(title, current, total);
             }
-           case "celebration" -> {
-               String title = (String) params.get("title");
+            case CELEBRATION -> {
+                String title = requireStringParam(params, "title");
+                yield createBorderedMessage(title);
+            }
+        };
+    }
 
-               return createBorderedMessage(title);
-           }
-            default -> throw new IllegalArgumentException("Unknown message type: " + type);
+    private String requireStringParam(Map<String, Object> params, String key) {
+        Object value = params == null ? null : params.get(key);
+        if (value == null) throw new IllegalArgumentException("Missing required parameter: '" + key + "'");
+        String str = value.toString();
+        if (str.isBlank()) throw new IllegalArgumentException("Parameter '" + key + "' must not be blank");
+        return str;
+    }
 
+    private int requireIntParam(Map<String, Object> params, String key) {
+        Object value = params == null ? null : params.get(key);
+        if (value == null) throw new IllegalArgumentException("Missing required parameter: '" + key + "'");
+        try {
+            return Integer.parseInt(value.toString());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Parameter '" + key + "' must be a valid integer");
         }
     }
 
@@ -58,7 +71,6 @@ public class MessageCreator {
         percentageComponentStyle.setWidth(BOARD_WIDTH);
 
         double percentage = (double) current / (double) total * 100;
-        // Make percentage fit on board
         int dividePercentage = 100 / CONTENT_WIDTH;
         double progress = Math.round(percentage / dividePercentage);
         String progressBarText = Math.round(percentage) + "%";
@@ -115,12 +127,10 @@ public class MessageCreator {
         vestaboardMessage.setComponents(List.of(messageComponent));
         vestaboardMessage.setProps(Map.of("text", text));
 
-
         return vestaboardMessage;
     }
 
     private String trimTextToBoardSize(String text) {
-        // If more text then space on board remove all words that won't fit.
         if(text.length() > CHAR_LIMIT) {
             text = text.trim();
             text = text.substring(0, text.lastIndexOf(' '));
@@ -129,7 +139,6 @@ public class MessageCreator {
     }
 
     private List<String> splitTextIntoLines(String text) {
-        // Split text into lines
         List<String> words = Arrays.stream(text.split("\\s")).toList();
         List<String> lines = new ArrayList<>();
         StringBuilder lineBuilder = new StringBuilder();
