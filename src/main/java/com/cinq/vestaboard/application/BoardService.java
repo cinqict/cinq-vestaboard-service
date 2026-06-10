@@ -35,4 +35,9 @@ public class BoardService {
         setMessageRequest.setCharacters(composedMessage);
         return vestaBoardGateway.setMessage(setMessageRequest).getStatus();
     }
+
+    public int[][] compose(SetMessageRequest request) {
+        VestaboardMessage vestaboardMessage = messageCreator.create(request.getType(), request.getParams());
+        return vestaBoardGateway.compose(vestaboardMessage);
+    }
 }
