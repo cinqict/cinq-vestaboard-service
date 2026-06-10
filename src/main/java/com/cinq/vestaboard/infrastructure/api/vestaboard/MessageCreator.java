@@ -2,15 +2,23 @@ package com.cinq.vestaboard.infrastructure.api.vestaboard;
 
 import com.cinq.vestaboard.domain.MessageType;
 import com.cinq.vestaboard.infrastructure.api.vestaboard.dto.*;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 public class MessageCreator {
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     private static final int BOARD_WIDTH = 22;
     private static final int CONTENT_WIDTH = 20;
@@ -32,7 +40,49 @@ public class MessageCreator {
                 String title = requireStringParam(params, "title");
                 yield createBorderedMessage(title);
             }
+            case SCOREBOARD -> {
+                String title = (String) params.get("title");
+                List<Object> entryObjects = (List<Object>) params.get("ranks");
+
+                List<ScoreBoardEntry> scoreBoardEntries = new ArrayList<>();
+                for (Object entryObject : entryObjects) {
+                    ScoreBoardEntry scoreBoardEntry = objectMapper.convertValue(entryObject, ScoreBoardEntry.class);
+
+                    String name = scoreBoardEntry.getName();
+                    String normalizesName = Normalizer.normalize(name, Normalizer.Form.NFD);
+                    String sanitizedName = normalizesName.replaceAll("[^\\p{ASCII}]", "");
+                    scoreBoardEntry.setName(sanitizedName);
+
+                    scoreBoardEntries.add(scoreBoardEntry);
+                }
+
+                yield createScoreBoardMessage(title, scoreBoardEntries);
+            }
         };
+    }
+
+               return createBorderedMessage(title);
+           }
+           case "scoreboard" -> {
+                String title = (String) params.get("title");
+                List<Object> entryObjects = (List<Object>) params.get("ranks");
+
+                List<ScoreBoardEntry> scoreBoardEntries = new ArrayList<>();
+                for (Object entryObject : entryObjects) {
+                    ScoreBoardEntry scoreBoardEntry = objectMapper.convertValue(entryObject, ScoreBoardEntry.class);
+
+                    String name = scoreBoardEntry.getName();
+                    String normalizesName = Normalizer.normalize(name, Normalizer.Form.NFD);
+                    String sanitizedName = normalizesName.replaceAll("[^\\p{ASCII}]", "");
+                    scoreBoardEntry.setName(sanitizedName);
+
+                    scoreBoardEntries.add(scoreBoardEntry);
+                }
+
+                return createScoreBoardMessage(title, scoreBoardEntries);
+            }
+            default -> throw new IllegalArgumentException("Unknown message type: " + type);
+        }
     }
 
     private String requireStringParam(Map<String, Object> params, String key) {
@@ -50,6 +100,99 @@ public class MessageCreator {
             return Integer.parseInt(value.toString());
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Parameter '" + key + "' must be a valid integer");
+        }
+    }
+
+    private VestaboardMessage createScoreBoardMessage(String title, List<ScoreBoardEntry> scoreBoardEntries) {
+        VestaboardStyle messageComponentStyle = new VestaboardStyle();
+        messageComponentStyle.setHeight(1);
+        messageComponentStyle.setWidth(BOARD_WIDTH);
+        messageComponentStyle.setAlign(VestaboardAlign.CENTER);
+        messageComponentStyle.setJustify(VestaboardJustify.CENTER);
+
+        if (title.length() > CONTENT_WIDTH) {
+            title = title.substring(0, CONTENT_WIDTH - 1);
+        }
+
+        VestaboardComponent messageComponent = new VestaboardComponent();
+        messageComponent.setTemplate(title);
+        messageComponent.setStyle(messageComponentStyle);
+
+        StringBuilder contentBuilder = new StringBuilder();
+        boolean alternate = false;
+        for (ScoreBoardEntry scoreBoardEntry : scoreBoardEntries) {
+            int rankLength = String.valueOf(scoreBoardEntry.getRank()).length() + 2; // Add 2 for spaces between components
+            int scoreLength = String.valueOf(scoreBoardEntry.getScore()).length() + 2; // Add 2 for spaces between components
+            int nameLength = CONTENT_WIDTH - rankLength - scoreLength;
+            StringBuilder builder = new StringBuilder();
+
+            if (scoreBoardEntry.getName().length() > nameLength) {
+                scoreBoardEntry.setName(scoreBoardEntry.getName().substring(0, nameLength));
+            }
+
+            builder.append(scoreBoardEntry.getName());
+            addPadding(builder, nameLength);
+
+            builder.insert(0, " ");
+            builder.insert(0, scoreBoardEntry.getRank());
+            builder.insert(0, " ");
+
+            builder.append(" ");
+            builder.append(scoreBoardEntry.getScore());
+            builder.append(" ");
+
+            addBorder(alternate, builder);
+            alternate = !alternate;
+
+            contentBuilder.append(builder);
+        }
+
+        if(scoreBoardEntries.size() < BOARD_HEIGHT) {
+            int emptyRows = BOARD_HEIGHT - scoreBoardEntries.size();
+
+            for (int i = 0; i < emptyRows; i++) {
+                StringBuilder emptyLineBuilder = new StringBuilder();
+                addEmptyRow(emptyLineBuilder);
+                addBorder(alternate, emptyLineBuilder);
+                contentBuilder.append(emptyLineBuilder);
+                alternate = !alternate;
+            }
+        }
+
+        VestaboardStyle contentStyle = new VestaboardStyle();
+//        contentStyle.setAlign(VestaboardAlign.CENTER);
+//        contentStyle.setJustify(VestaboardJustify.CENTER);
+        contentStyle.setHeight(BOARD_HEIGHT-1);
+        contentStyle.setWidth(BOARD_WIDTH);
+
+        VestaboardComponent contentComponent = new VestaboardComponent();
+        contentComponent.setStyle(contentStyle);
+        contentComponent.setTemplate(contentBuilder.toString());
+
+        VestaboardMessage vestaboardMessage = new VestaboardMessage();
+        vestaboardMessage.setProps(Map.of());
+        vestaboardMessage.setComponents(List.of(
+                messageComponent,
+                contentComponent));
+
+        return vestaboardMessage;
+    }
+
+    private void addEmptyRow(StringBuilder builder) {
+        for (int i = 0; i < CONTENT_WIDTH; i++) {
+            builder.append("{0}");
+        }
+    }
+
+    private void addBorder(boolean alternate, StringBuilder builder) {
+        if(alternate) {
+            log.info("orange");
+            builder.insert(0, "{64}");
+            builder.append("{64}");
+        } else {
+            log.info("blue");
+            builder.insert(0, "{67}");
+            builder.append("{67}");
         }
     }
 
@@ -71,6 +214,7 @@ public class MessageCreator {
         percentageComponentStyle.setWidth(BOARD_WIDTH);
 
         double percentage = (double) current / (double) total * 100;
+        // Make percentage fit on board
         int dividePercentage = 100 / CONTENT_WIDTH;
         double progress = Math.round(percentage / dividePercentage);
         String progressBarText = Math.round(percentage) + "%";
@@ -131,6 +275,7 @@ public class MessageCreator {
     }
 
     private String trimTextToBoardSize(String text) {
+        // If more text then space on board remove all words that won't fit.
         if(text.length() > CHAR_LIMIT) {
             text = text.trim();
             text = text.substring(0, text.lastIndexOf(' '));
@@ -139,6 +284,7 @@ public class MessageCreator {
     }
 
     private List<String> splitTextIntoLines(String text) {
+        // Split text into lines
         List<String> words = Arrays.stream(text.split("\\s")).toList();
         List<String> lines = new ArrayList<>();
         StringBuilder lineBuilder = new StringBuilder();
@@ -149,16 +295,16 @@ public class MessageCreator {
                 addWord(lineBuilder, word);
 
                 if(i == words.size() - 1) {
-                    addPadding(lineBuilder);
+                    addPadding(lineBuilder, CONTENT_WIDTH);
                 }
             } else {
-                addPadding(lineBuilder);
+                addPadding(lineBuilder, CONTENT_WIDTH);
                 lines.add(lineBuilder.toString());
                 lineBuilder = new StringBuilder();
                 addWord(lineBuilder, word);
 
                 if(i == words.size() - 1) {
-                    addPadding(lineBuilder);
+                    addPadding(lineBuilder, CONTENT_WIDTH);
                 }
             }
         }
@@ -200,8 +346,8 @@ public class MessageCreator {
         return stringBuilder.toString();
     }
 
-    private void addPadding(StringBuilder stringBuilder) {
-        int padding = CONTENT_WIDTH - stringBuilder.length();
+    private void addPadding(StringBuilder stringBuilder, int maxWidth) {
+        int padding = maxWidth - stringBuilder.length();
 
         for(int i = 0; i < padding; i++) {
             if(i%2 == 0) {
