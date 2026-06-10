@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -49,6 +50,12 @@ public class MessageCreator {
                 List<ScoreBoardEntry> scoreBoardEntries = new ArrayList<>();
                 for (Object entryObject : entryObjects) {
                     ScoreBoardEntry scoreBoardEntry = objectMapper.convertValue(entryObject, ScoreBoardEntry.class);
+
+                    String name = scoreBoardEntry.getName();
+                    String normalizesName = Normalizer.normalize(name, Normalizer.Form.NFD);
+                    String sanitizedName = normalizesName.replaceAll("[^\\p{ASCII}]", "");
+                    scoreBoardEntry.setName(sanitizedName);
+
                     scoreBoardEntries.add(scoreBoardEntry);
                 }
 
@@ -77,8 +84,8 @@ public class MessageCreator {
         StringBuilder contentBuilder = new StringBuilder();
         boolean alternate = false;
         for (ScoreBoardEntry scoreBoardEntry : scoreBoardEntries) {
-            int rankLength = String.valueOf(scoreBoardEntry.getRank()).length() + 1;
-            int scoreLength = String.valueOf(scoreBoardEntry.getScore()).length() + 1;
+            int rankLength = String.valueOf(scoreBoardEntry.getRank()).length() + 2; // Add 2 for spaces between components
+            int scoreLength = String.valueOf(scoreBoardEntry.getScore()).length() + 2; // Add 2 for spaces between components
             int nameLength = CONTENT_WIDTH - rankLength - scoreLength;
             StringBuilder builder = new StringBuilder();
 
@@ -89,10 +96,11 @@ public class MessageCreator {
             builder.append(scoreBoardEntry.getName());
             addPadding(builder, nameLength);
 
-
+            builder.insert(0, " ");
             builder.insert(0, scoreBoardEntry.getRank());
             builder.insert(0, " ");
 
+            builder.append(" ");
             builder.append(scoreBoardEntry.getScore());
             builder.append(" ");
 
