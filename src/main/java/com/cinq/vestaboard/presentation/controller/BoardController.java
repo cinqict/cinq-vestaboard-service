@@ -2,9 +2,11 @@ package com.cinq.vestaboard.presentation.controller;
 
 import com.cinq.vestaboard.application.BoardService;
 import com.cinq.vestaboard.domain.MessageType;
+import com.cinq.vestaboard.infrastructure.api.vestaboard.dto.ScoreBoardEntry;
 import com.cinq.vestaboard.infrastructure.api.vestaboard.dto.SetMessageRequest;
 import com.cinq.vestaboard.presentation.controller.dto.CelebrationTemplate;
 import com.cinq.vestaboard.presentation.controller.dto.ProgressTemplate;
+import com.cinq.vestaboard.presentation.controller.dto.ScoreboardTemplate;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,6 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/vestaboard")
@@ -52,6 +56,12 @@ public class BoardController {
                 return new ProgressTemplate("Title", 25, 100);
             case CELEBRATION:
                 return new CelebrationTemplate("Title");
+            case SCOREBOARD:
+                return new ScoreboardTemplate("Title", List.of(
+                        new ScoreBoardEntry(1, "name", 10),
+                        new ScoreBoardEntry(2, "name2", 7),
+                        new ScoreBoardEntry(3, "name3", 4)
+                ));
             default:
                 return "";
         }

@@ -61,30 +61,6 @@ public class MessageCreator {
         };
     }
 
-               return createBorderedMessage(title);
-           }
-           case "scoreboard" -> {
-                String title = (String) params.get("title");
-                List<Object> entryObjects = (List<Object>) params.get("ranks");
-
-                List<ScoreBoardEntry> scoreBoardEntries = new ArrayList<>();
-                for (Object entryObject : entryObjects) {
-                    ScoreBoardEntry scoreBoardEntry = objectMapper.convertValue(entryObject, ScoreBoardEntry.class);
-
-                    String name = scoreBoardEntry.getName();
-                    String normalizesName = Normalizer.normalize(name, Normalizer.Form.NFD);
-                    String sanitizedName = normalizesName.replaceAll("[^\\p{ASCII}]", "");
-                    scoreBoardEntry.setName(sanitizedName);
-
-                    scoreBoardEntries.add(scoreBoardEntry);
-                }
-
-                return createScoreBoardMessage(title, scoreBoardEntries);
-            }
-            default -> throw new IllegalArgumentException("Unknown message type: " + type);
-        }
-    }
-
     private String requireStringParam(Map<String, Object> params, String key) {
         Object value = params == null ? null : params.get(key);
         if (value == null) throw new IllegalArgumentException("Missing required parameter: '" + key + "'");
